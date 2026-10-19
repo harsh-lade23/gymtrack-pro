@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Aggregation Reports — GymTrack Pro{% endblock %}
+{% block page_title %}MongoDB Aggregation Pipelines{% endblock %}
+{% block page_subtitle %}Multi-stage data analytics &amp; reporting pipelines using the MongoDB Aggregation Framework{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">
+    <i class="fas fa-arrow-left"></i> Back to Dashboard
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Unit IV Aggregation Framework Summary -->
+<div class="seed-banner">
+    <div class="seed-info">
+        <h4><i class="fas fa-layer-group text-gradient" style="margin-right: 8px;"></i>Unit IV: Aggregation Framework Overview</h4>
+        <p>MongoDB aggregation pipelines process documents through multi-stage transformations. Below are 6 production pipelines demonstrating <code>$match</code>, <code>$project</code>, <code>$group</code>, <code>$sort</code>, <code>$limit</code>, and accumulators (<code>$sum</code>, <code>$avg</code>, <code>$min</code>, <code>$max</code>).</p>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge badge-cyan">6 Pipelines Active</span>
+    </div>
+</div>
+
+<!-- ================= PIPELINES LIST ================= -->
+{% for rep in reports %}
+<div class="report-card">
+    <div class="report-header">
+        <div class="report-num">{{ loop.index }}</div>
+        <div style="flex: 1;">
+            <div class="d-flex align-center justify-between">
+                <h4>{{ rep.title }}</h4>
+                <span class="badge badge-violet" style="font-size: 11px;">Stages: {{ rep.stages }}</span>
+            </div>
+            <p>{{ rep.description }}</p>
+        </div>
+    </div>
+
+    <div class="report-body">
+        <!-- Pipeline Mongo Query Code -->
+        <div class="d-flex justify-between align-center mb-1">
+            <span class="text-muted" style="font-size: 11.5px; font-weight: 600; text-transform: uppercase;">MongoDB Pipeline Query:</span>
+        </div>
+        <pre class="pipeline-code"><code>{{ rep.pipeline_code }}</code></pre>
+
+        <!-- Pipeline Result Table -->
+        <div class="table-container">
+            <table>
+                {% if rep.type == 'revenue' %}
+                <thead>
+                    <tr>
+                        <th>Membership Plan</th>
+                        <th>Enrolled Members</th>
+                        <th>Plan Price</th>
+                        <th>Total Revenue</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rep.result %}
+                    <tr>
+                        <td><span class="badge badge-violet">{{ r._id }}</span></td>
+                        <td><strong>{{ r.member_count }}</strong> members</td>
+                        <td>₹{{ "{:,}".format(r.price) }}</td>
+                        <td><strong style="color: #10b981;">₹{{ "{:,}".format(r.revenue) }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+                {% elif rep.type == 'calories' %}
+                <thead>
+                    <tr>
+                        <th>Workout Type</th>
+                        <th>Average Calories Burned</th>
+                        <th>Total Logged Sessions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rep.result %}
+                    <tr>
+                        <td><span class="badge badge-cyan">{{ r._id }}</span></td>
+                        <td><strong style="color: #f59e0b;"><i class="fas fa-fire" style="margin-right: 4px;"></i>{{ r.avg_calories|round(1) }} kcal</strong></td>
+                        <td>{{ r.total_sessions }} sessions</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+                {% elif rep.type == 'active' %}
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Member Name</th>
+                        <th>Workout Sessions</th>
+                        <th>Total Calories Burned</th>
+                        <th>Total Workout Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rep.result %}
+                    <tr>
+                        <td>
+                            <span class="badge {{ 'badge-amber' if loop.index == 1 else 'badge-violet' }}">
+                                #{{ loop.index }}
+                            </span>
+                        </td>
+                        <td><strong>{{ r._id }}</strong></td>
+                        <td><strong>{{ r.workout_count }}</strong> workouts</td>
+                        <td><span style="color: #f59e0b;">{{ "{:,}".format(r.total_calories) }} kcal</span></td>
+                        <td><i class="far fa-clock" style="margin-right: 4px; color: var(--text-muted);"></i>{{ r.total_minutes }} mins</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+                {% elif rep.type == 'signups' %}
+                <thead>
+                    <tr>
+                        <th>Month Number</th>
+                        <th>Month Name</th>
+                        <th>New Members Joined</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rep.result %}
+                    <tr>
+                        <td><span class="badge badge-violet">Month {{ r._id }}</span></td>
+                        <td><strong>{{ r.month_name }}</strong></td>
+                        <td><strong style="color: #06b6d4;">{{ r.signups }}</strong> signups</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+                {% elif rep.type == 'workload' %}
+                <thead>
+                    <tr>
+                        <th>Trainer Name</th>
+                        <th>Active Members Assigned</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rep.result %}
+                    <tr>
+                        <td><strong style="color: var(--text-primary);"><i class="fas fa-user-tie" style="margin-right: 6px; color: var(--accent-cyan);"></i>{{ r._id }}</strong></td>
+                        <td><span class="badge badge-cyan">{{ r.member_count }} Members</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+                {% elif rep.type == 'duration' %}
+                <thead>
+                    <tr>
+                        <th>Workout Type</th>
+                        <th>Average Duration</th>
+                        <th>Min Duration</th>
+                        <th>Max Duration</th>
+                        <th>Total Sessions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rep.result %}
+                    <tr>
+                        <td><span class="badge badge-violet">{{ r._id }}</span></td>
+                        <td><strong>{{ r.avg_duration|round(1) }} mins</strong></td>
+                        <td>{{ r.min_duration }} mins</td>
+                        <td>{{ r.max_duration }} mins</td>
+                        <td>{{ r.total_sessions }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% endif %}
+
+                {% if not rep.result %}
+                <tr>
+                    <td colspan="5">
+                        <div class="empty-state" style="padding: 24px;">
+                            <i class="fas fa-database"></i>
+                            <h4>No Data in Collection</h4>
+                            <p>Please seed sample records to generate this aggregation result.</p>
+                        </div>
+                    </td>
+                </tr>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}

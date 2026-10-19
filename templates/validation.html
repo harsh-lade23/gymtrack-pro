@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Schema Validation — GymTrack Pro{% endblock %}
+{% block page_title %}MongoDB Schema Validation{% endblock %}
+{% block page_subtitle %}Enforce document integrity and data quality using $jsonSchema validation rules (Unit III){% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-sm">
+    <i class="fas fa-arrow-left"></i> Dashboard
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Unit III Schema Validation Banner -->
+<div class="seed-banner">
+    <div class="seed-info">
+        <h4><i class="fas fa-shield-alt text-gradient" style="margin-right: 8px;"></i>Unit III: Schema Design &amp; Data Validation Rules</h4>
+        <p>While MongoDB is schema-flexible, enterprise applications enforce strict business logic using <strong>$jsonSchema validators</strong>. With <code>validationAction: 'error'</code>, invalid documents are strictly rejected before hitting the disk.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge badge-green">Validation Action: ERROR</span>
+    </div>
+</div>
+
+<!-- ================= INTERACTIVE VALIDATION TESTER ================= -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3><i class="fas fa-vial" style="color: var(--accent-violet); margin-right: 8px;"></i>Interactive Schema Validation Playground</h3>
+        <span class="text-muted" style="font-size: 13px;">Attempt to write documents to test MongoDB's rejection engine</span>
+    </div>
+    <div class="card-body">
+        <p class="text-secondary mb-2" style="font-size: 13px;">
+            Test how the database reacts when violating schema constraints. Click any scenario below:
+        </p>
+
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            <button class="btn btn-primary btn-sm" onclick="testSchemaValidation('valid')">
+                <i class="fas fa-check-circle"></i> 1. Valid Document (Should Pass)
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="testSchemaValidation('invalid_age')">
+                <i class="fas fa-ban"></i> 2. Age &lt; 16 (Violates minimum: 16)
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="testSchemaValidation('invalid_gender')">
+                <i class="fas fa-ban"></i> 3. Invalid Gender (Violates enum)
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="testSchemaValidation('invalid_status')">
+                <i class="fas fa-ban"></i> 4. Invalid Status (Violates enum)
+            </button>
+        </div>
+
+        <!-- Result Box -->
+        <div class="validation-result" id="validationResultBox">
+            Click one of the test buttons above to run an insert validation check...
+        </div>
+    </div>
+</div>
+
+<!-- ================= SCHEMA VALIDATOR DEFINITIONS ================= -->
+<div class="validation-demo mb-3">
+    <!-- Members Validator -->
+    <div class="validation-panel">
+        <h4><i class="fas fa-user-check text-gradient"></i>Members Collection Validator ($jsonSchema)</h4>
+        <p class="text-muted mb-2" style="font-size: 12px;">Enforces required fields, string lengths, age range (16-80), and gender/status enums.</p>
+        <pre class="pipeline-code" style="max-height: 400px; overflow-y: auto;"><code>{{ member_validation }}</code></pre>
+    </div>
+
+    <!-- Workouts Validator -->
+    <div class="validation-panel">
+        <h4><i class="fas fa-heartbeat text-gradient"></i>Workouts Collection Validator ($jsonSchema)</h4>
+        <p class="text-muted mb-2" style="font-size: 12px;">Enforces date types, minimum calorie counts, positive duration, and array embedding.</p>
+        <pre class="pipeline-code" style="max-height: 400px; overflow-y: auto;"><code>{{ workout_validation }}</code></pre>
+    </div>
+</div>
+
+<!-- ================= VIVA NOTES CARD ================= -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-graduation-cap" style="color: var(--accent-cyan); margin-right: 8px;"></i>Viva &amp; Exam Highlights (Unit III Syllabus)</h3>
+    </div>
+    <div class="card-body">
+        <div class="grid-2" style="gap: 20px;">
+            <div>
+                <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--text-primary);"><i class="fas fa-question-circle" style="color: var(--accent-violet); margin-right: 6px;"></i>Embedding vs. Referencing in this Project</h4>
+                <ul style="font-size: 13px; color: var(--text-secondary); line-height: 1.8; padding-left: 18px;">
+                    <li><strong>Embedded:</strong> <code>exercises</code> are embedded inside <code>workouts</code> because exercises are always retrieved together with the session (1-to-few relationship).</li>
+                    <li><strong>Embedded:</strong> <code>body_metrics</code> and <code>membership</code> are embedded inside <code>members</code> for single-read speed.</li>
+                    <li><strong>Referenced:</strong> <code>trainer_name</code> and <code>plan_name</code> are referenced to prevent data duplication and simplify bulk pricing/trainer updates.</li>
+                </ul>
+            </div>
+            <div>
+                <h4 style="font-size: 14px; margin-bottom: 8px; color: var(--text-primary);"><i class="fas fa-shield-virus" style="color: #10b981; margin-right: 6px;"></i>Schema Validation Levels &amp; Actions</h4>
+                <ul style="font-size: 13px; color: var(--text-secondary); line-height: 1.8; padding-left: 18px;">
+                    <li><code>validationLevel: 'strict'</code> (default) — applies validation rules to all inserts and updates.</li>
+                    <li><code>validationAction: 'error'</code> — rejects any document that violates schema with a <code>WriteError</code>.</li>
+                    <li><code>validationAction: 'warn'</code> — allows write but records a violation in the MongoDB server log.</li>
+                    <li>This project uses <strong>error</strong> action for zero data corruption.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

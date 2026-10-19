@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Membership Plans — GymTrack Pro{% endblock %}
+{% block page_title %}Membership Plans{% endblock %}
+{% block page_subtitle %}Configure gym membership tiers, pricing, and perks (Document Catalog Pattern){% endblock %}
+
+{% block header_actions %}
+<button class="btn btn-primary btn-sm" onclick="openModal('addPlanModal')">
+    <i class="fas fa-plus"></i> New Plan Tier
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- MongoDB Catalog Banner -->
+<div class="seed-banner">
+    <div class="seed-info">
+        <h4><i class="fas fa-tags text-gradient" style="margin-right: 8px;"></i>Catalog Collection Pattern</h4>
+        <p>The <code>plans</code> collection acts as a master pricing and features catalog. Aggregation pipelines query this collection to compute gross revenue across all enrolled members.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge badge-amber">Available Tiers: {{ plans|length }}</span>
+    </div>
+</div>
+
+<!-- Plan Cards Grid -->
+<div class="grid-3">
+    {% for p in plans %}
+    <div class="plan-card">
+        <div class="plan-name">{{ p.plan_name }}</div>
+        <div class="plan-price">₹{{ "{:,}".format(p.price) }}</div>
+        <div class="plan-duration">{{ p.duration_months }} Month{{ 's' if p.duration_months > 1 else '' }} Duration</div>
+
+        <p class="text-secondary mb-2" style="font-size: 13px; min-height: 40px;">
+            {{ p.description if p.description else 'Full access to gym equipment and facilities.' }}
+        </p>
+
+        <ul class="plan-features mb-3">
+            {% for f in p.features %}
+            <li><i class="fas fa-check-circle"></i> {{ f }}</li>
+            {% endfor %}
+        </ul>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: auto;" class="d-flex justify-between align-center">
+            <span class="badge badge-violet">₹{{ (p.price / p.duration_months)|round|int }}/mo</span>
+            <a href="{{ url_for('delete_plan', id=p._id) }}" class="btn-icon danger" title="Delete Plan Tier"
+               onclick="return confirm('Delete plan tier {{ p.plan_name }}?')">
+                <i class="fas fa-trash"></i>
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not plans %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <i class="fas fa-tags"></i>
+            <h4>No Plans Created Yet</h4>
+            <p>Click "New Plan Tier" above to create your first membership option.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ================= ADD PLAN MODAL ================= -->
+<div class="modal-overlay" id="addPlanModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus text-gradient" style="margin-right: 8px;"></i>Create Membership Plan</h3>
+            <button class="modal-close" onclick="closeModal('addPlanModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('add_plan') }}" method="POST">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="plan_name">Plan Name *</label>
+                        <input type="text" name="plan_name" id="plan_name" class="form-control" placeholder="e.g. Diamond VIP" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="duration_months">Duration (Months) *</label>
+                        <input type="number" name="duration_months" id="duration_months" class="form-control" min="1" max="36" value="6" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="price">Price (₹ INR) *</label>
+                    <input type="number" name="price" id="price" class="form-control" min="100" value="7999" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="features">Included Features * (Comma separated)</label>
+                    <input type="text" name="features" id="features" class="form-control"
+                           placeholder="e.g. 24/7 Access, Sauna & Spa, Personal Trainer 2x/wk, Free Protein Shake" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="description">Short Description</label>
+                    <textarea name="description" id="description" class="form-control" placeholder="Best suited for athletes and fitness enthusiasts..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addPlanModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Plan</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

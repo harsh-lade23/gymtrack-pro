@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Indexing & Optimization — GymTrack Pro{% endblock %}
+{% block page_title %}Indexing &amp; Query Optimization{% endblock %}
+{% block page_subtitle %}Explore B-Tree indexes, explain() execution plans, and query performance (Unit IV){% endblock %}
+
+{% block header_actions %}
+<form action="{{ url_for('create_indexes') }}" method="POST" style="margin: 0;">
+    <button type="submit" class="btn btn-primary btn-sm">
+        <i class="fas fa-bolt"></i> Re-create All Indexes
+    </button>
+</form>
+{% endblock %}
+
+{% block content %}
+
+<!-- Unit IV Indexing Banner -->
+<div class="seed-banner">
+    <div class="seed-info">
+        <h4><i class="fas fa-tachometer-alt text-gradient" style="margin-right: 8px;"></i>Query Optimization with B-Tree Indexes</h4>
+        <p>Without indexes, MongoDB must perform a <strong>COLLSCAN</strong> (scanning every document in the collection). With proper indexes, queries execute via <strong>IXSCAN</strong> in <code>O(log N)</code> time, examining only matching index keys.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge badge-green">IXSCAN Enabled</span>
+    </div>
+</div>
+
+<!-- ================= INTERACTIVE EXPLAIN() QUERY RUNNER ================= -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3><i class="fas fa-microscope" style="color: var(--accent-cyan); margin-right: 8px;"></i>Interactive Query Planner &amp; explain() Demo</h3>
+        <span class="text-muted" style="font-size: 13px;">Test live queries to inspect execution stats</span>
+    </div>
+    <div class="card-body">
+        <p class="text-secondary mb-2" style="font-size: 13px;">
+            Click any query type below to execute a real-time <code>.explain("executionStats")</code> call through PyMongo:
+        </p>
+
+        <!-- Query Buttons -->
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            <button class="btn btn-secondary btn-sm" onclick="runExplainQuery('email')">
+                <i class="fas fa-envelope"></i> Unique Index (Email)
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="runExplainQuery('status')">
+                <i class="fas fa-check-circle"></i> Single-Field (Status)
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="runExplainQuery('compound')">
+                <i class="fas fa-cubes"></i> Compound (Email + Date)
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="runExplainQuery('text')">
+                <i class="fas fa-font"></i> Text Index ($text Search)
+            </button>
+        </div>
+
+        <!-- Metrics Cards Row -->
+        <div class="grid-2 mb-2">
+            <div class="card" style="background: rgba(0,0,0,0.25); border-color: rgba(255,255,255,0.04);">
+                <div class="card-body" style="padding: 16px 20px;">
+                    <div class="text-muted" style="font-size: 11px; text-transform: uppercase; font-weight: 600;">Execution Stage</div>
+                    <div style="font-size: 20px; font-weight: 700; color: #10b981; margin-top: 4px;" id="explainStage">IXSCAN / FETCH</div>
+                    <div class="text-muted" style="font-size: 12px; margin-top: 2px;">Index used: <span id="explainIndex" style="color: var(--accent-cyan); font-weight: 600;">idx_email_unique</span></div>
+                </div>
+            </div>
+            <div class="card" style="background: rgba(0,0,0,0.25); border-color: rgba(255,255,255,0.04);">
+                <div class="card-body" style="padding: 16px 20px;">
+                    <div class="text-muted" style="font-size: 11px; text-transform: uppercase; font-weight: 600;">Docs Examined vs Returned</div>
+                    <div style="font-size: 20px; font-weight: 700; color: var(--accent-violet); margin-top: 4px;" id="explainDocs">1 examined (1 returned)</div>
+                    <div class="text-muted" style="font-size: 12px; margin-top: 2px;">Execution Time: <span id="explainTime" style="color: #f59e0b; font-weight: 600;">0 ms</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explain Raw Output -->
+        <div class="text-muted mb-1" style="font-size: 11.5px; font-weight: 600; text-transform: uppercase;">Winning Plan Details (JSON):</div>
+        <pre class="explain-output" id="explainOutput">Click a button above to run explain() on that MongoDB index query...</pre>
+    </div>
+</div>
+
+<!-- ================= INDEXES CATALOG BY COLLECTION ================= -->
+<div class="card mb-3">
+    <div class="card-header">
+        <h3><i class="fas fa-list-ul" style="color: var(--accent-violet); margin-right: 8px;"></i>Active MongoDB Indexes by Collection</h3>
+        <span class="text-muted" style="font-size: 13px;">Retrieved from db.collection.list_indexes()</span>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Collection</th>
+                        <th>Index Name</th>
+                        <th>Indexed Keys &amp; Direction</th>
+                        <th>Type / Flags</th>
+                        <th>Version</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Members Indexes -->
+                    {% for idx in member_indexes %}
+                    <tr>
+                        <td><span class="badge badge-violet">members</span></td>
+                        <td><strong>{{ idx.name }}</strong></td>
+                        <td>
+                            <code>{{ idx.key.to_dict() if idx.key.to_dict is defined else idx.key }}</code>
+                        </td>
+                        <td>
+                            {% if idx.unique %}
+                                <span class="badge badge-amber"><i class="fas fa-key" style="margin-right: 4px;"></i>UNIQUE</span>
+                            {% elif idx.name == '_id_' %}
+                                <span class="badge badge-secondary">PRIMARY ID</span>
+                            {% else %}
+                                <span class="badge badge-cyan">SINGLE FIELD</span>
+                            {% endif %}
+                        </td>
+                        <td>v{{ idx.v }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Workouts Indexes -->
+                    {% for idx in workout_indexes %}
+                    <tr>
+                        <td><span class="badge badge-cyan">workouts</span></td>
+                        <td><strong>{{ idx.name }}</strong></td>
+                        <td>
+                            <code>{{ idx.key.to_dict() if idx.key.to_dict is defined else idx.key }}</code>
+                        </td>
+                        <td>
+                            {% if 'compound' in idx.name %}
+                                <span class="badge badge-violet"><i class="fas fa-layer-group" style="margin-right: 4px;"></i>COMPOUND</span>
+                            {% elif idx.name == '_id_' %}
+                                <span class="badge badge-secondary">PRIMARY ID</span>
+                            {% else %}
+                                <span class="badge badge-cyan">SINGLE FIELD</span>
+                            {% endif %}
+                        </td>
+                        <td>v{{ idx.v }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Trainers Indexes -->
+                    {% for idx in trainer_indexes %}
+                    <tr>
+                        <td><span class="badge badge-green">trainers</span></td>
+                        <td><strong>{{ idx.name }}</strong></td>
+                        <td>
+                            <code>{{ idx.key.to_dict() if idx.key.to_dict is defined else idx.key }}</code>
+                        </td>
+                        <td>
+                            {% if 'text' in idx.name or 'weights' in idx %}
+                                <span class="badge badge-amber"><i class="fas fa-font" style="margin-right: 4px;"></i>FULL TEXT</span>
+                            {% elif idx.name == '_id_' %}
+                                <span class="badge badge-secondary">PRIMARY ID</span>
+                            {% else %}
+                                <span class="badge badge-cyan">SINGLE FIELD</span>
+                            {% endif %}
+                        </td>
+                        <td>v{{ idx.v }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ================= INDEX COMPARISON THEORY CARD ================= -->
+<div class="index-comparison">
+    <div class="index-panel">
+        <div class="index-panel-header" style="color: #ef4444;">
+            <i class="fas fa-times-circle"></i> Without Indexes (COLLSCAN)
+        </div>
+        <div class="index-panel-body" style="font-size: 13px; color: var(--text-secondary); line-height: 1.7;">
+            <p>• <strong>Collection Scan</strong> reads every document from disk sequentially.</p>
+            <p>• Time complexity: <strong>O(N)</strong> where N = total documents.</p>
+            <p>• High CPU and I/O usage, query speed degrades rapidly as the gym scales to thousands of members.</p>
+            <p>• Cannot enforce uniqueness constraints (e.g. duplicate member emails allowed).</p>
+        </div>
+    </div>
+
+    <div class="index-panel">
+        <div class="index-panel-header" style="color: #10b981;">
+            <i class="fas fa-check-circle"></i> With Indexes (IXSCAN)
+        </div>
+        <div class="index-panel-body" style="font-size: 13px; color: var(--text-secondary); line-height: 1.7;">
+            <p>• <strong>B-Tree Index Scan</strong> navigates directly to the target leaf nodes.</p>
+            <p>• Time complexity: <strong>O(log N)</strong> logarithmic search.</p>
+            <p>• <code>idx_member_date_compound</code> sorts results directly in index order, avoiding in-memory sort.</p>
+            <p>• <code>idx_email_unique</code> enforces instantaneous uniqueness check at write time.</p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

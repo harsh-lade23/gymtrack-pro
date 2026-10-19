@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Members — GymTrack Pro{% endblock %}
+{% block page_title %}Member Management{% endblock %}
+{% block page_subtitle %}Manage gym members, plans, and assignments (CRUD operations with MongoDB){% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('expire_old_memberships') }}" class="btn btn-secondary btn-sm" title="MongoDB update_many demo">
+    <i class="fas fa-sync-alt"></i> Expire Old Memberships
+</a>
+<button class="btn btn-primary btn-sm" onclick="openModal('addMemberModal')">
+    <i class="fas fa-user-plus"></i> Add Member
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- MongoDB Operation Info Banner -->
+<div class="seed-banner">
+    <div class="seed-info">
+        <h4><i class="fas fa-database text-gradient" style="margin-right: 8px;"></i>MongoDB Operations Highlight</h4>
+        <p>Demonstrates <code>insert_one</code> (Create), <code>find().sort()</code> (Read), <code>update_one with $set</code> &amp; <code>update_many</code> (Update), and <code>delete_one</code> (Delete) with JSON Schema Validation.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge badge-violet">Total: {{ members|length }}</span>
+    </div>
+</div>
+
+<!-- Members Table Card -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-users" style="color: var(--accent-violet); margin-right: 8px;"></i>All Registered Members</h3>
+        <span class="text-muted" style="font-size: 13px;">Sorted alphabetically by name</span>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Member</th>
+                        <th>Contact</th>
+                        <th>Age / Gender</th>
+                        <th>Plan</th>
+                        <th>Trainer</th>
+                        <th>Metrics</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in members %}
+                    <tr>
+                        <td>
+                            <div class="member-info">
+                                <div class="avatar {{ get_avatar_color(m.name) }}">{{ get_initials(m.name) }}</div>
+                                <div>
+                                    <div class="member-name">{{ m.name }}</div>
+                                    <div class="member-email"><i class="far fa-calendar-alt" style="margin-right: 4px;"></i>Joined {{ m.join_date.strftime('%d %b %Y') if m.join_date else 'N/A' }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="font-size: 13px; font-weight: 500;">{{ m.email }}</div>
+                            <div class="text-muted" style="font-size: 12px;"><i class="fas fa-phone-alt" style="font-size: 10px; margin-right: 4px;"></i>{{ m.phone }}</div>
+                        </td>
+                        <td>
+                            <span style="font-weight: 600;">{{ m.age }} yrs</span>
+                            <span class="text-muted">· {{ m.gender }}</span>
+                        </td>
+                        <td>
+                            <span class="badge badge-violet">{{ m.membership.plan_name }}</span>
+                            <div class="text-muted" style="font-size: 11px; margin-top: 4px;">
+                                Exp: {{ m.membership.end_date.strftime('%d %b %Y') if m.membership.end_date else '—' }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if m.trainer_name %}
+                                <span class="badge badge-cyan">{{ m.trainer_name }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if m.body_metrics %}
+                                <div style="font-size: 12.5px;">{{ m.body_metrics.weight_kg }} kg / {{ m.body_metrics.height_cm }} cm</div>
+                                <div class="text-muted" style="font-size: 11px;">BMI: <strong>{{ m.body_metrics.bmi }}</strong></div>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ m.membership.status }} badge-dot">
+                                {{ m.membership.status | capitalize }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="action-group">
+                                <button class="btn-icon" title="Edit Member"
+                                        onclick="openEditMemberModal('{{ m._id }}', '{{ m.name }}', '{{ m.phone }}', '{{ m.age }}', '{{ m.body_metrics.weight_kg if m.body_metrics else 70 }}', '{{ m.membership.status }}', '{{ m.trainer_name }}')">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <a href="{{ url_for('delete_member', id=m._id) }}" class="btn-icon danger" title="Delete Member"
+                                   onclick="return confirm('Are you sure you want to delete member {{ m.name }}? This will also remove their workout logs.')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not members %}
+                    <tr>
+                        <td colspan="8">
+                            <div class="empty-state">
+                                <i class="fas fa-users-slash"></i>
+                                <h4>No Members Found</h4>
+                                <p>Click "Add Member" or visit the Dashboard to seed demo data.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ================= ADD MEMBER MODAL ================= -->
+<div class="modal-overlay" id="addMemberModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-plus text-gradient" style="margin-right: 8px;"></i>Add New Member</h3>
+            <button class="modal-close" onclick="closeModal('addMemberModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('add_member') }}" method="POST">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="name">Full Name *</label>
+                        <input type="text" name="name" id="name" class="form-control" placeholder="e.g. Rahul Sharma" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email Address * (Unique Index)</label>
+                        <input type="email" name="email" id="email" class="form-control" placeholder="rahul@example.com" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="phone">Phone Number * (10-15 chars)</label>
+                        <input type="tel" name="phone" id="phone" class="form-control" placeholder="9876543210" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="age">Age * (16 - 80)</label>
+                        <input type="number" name="age" id="age" class="form-control" min="16" max="80" value="25" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gender">Gender *</label>
+                        <select name="gender" id="gender" class="form-control" required>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="plan_name">Membership Plan *</label>
+                        <select name="plan_name" id="plan_name" class="form-control" required>
+                            {% for p in plans %}
+                            <option value="{{ p.plan_name }}">{{ p.plan_name }} ({{ p.duration_months }}m - ₹{{ p.price }})</option>
+                            {% endfor %}
+                            {% if not plans %}
+                            <option value="Gold">Gold</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="trainer_name">Assigned Trainer</label>
+                    <select name="trainer_name" id="trainer_name" class="form-control">
+                        <option value="">None (Self-guided)</option>
+                        {% for t in trainers %}
+                        <option value="{{ t.name }}">{{ t.name }} ({{ t.specialization|join(', ') }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="height_cm">Height (cm)</label>
+                        <input type="number" step="0.1" name="height_cm" id="height_cm" class="form-control" value="175">
+                    </div>
+                    <div class="form-group">
+                        <label for="weight_kg">Weight (kg)</label>
+                        <input type="number" step="0.1" name="weight_kg" id="weight_kg" class="form-control" value="70">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addMemberModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Save Member</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= EDIT MEMBER MODAL ================= -->
+<div class="modal-overlay" id="editMemberModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-user-edit text-gradient" style="margin-right: 8px;"></i>Update Member</h3>
+            <button class="modal-close" onclick="closeModal('editMemberModal')">&times;</button>
+        </div>
+        <form id="editMemberForm" method="POST">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="edit_name">Full Name</label>
+                    <input type="text" name="name" id="edit_name" class="form-control" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit_phone">Phone Number</label>
+                        <input type="tel" name="phone" id="edit_phone" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_age">Age</label>
+                        <input type="number" name="age" id="edit_age" class="form-control" min="16" max="80" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="edit_weight">Weight (kg) — Recalculates BMI</label>
+                        <input type="number" step="0.1" name="weight_kg" id="edit_weight" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit_status">Membership Status</label>
+                        <select name="status" id="edit_status" class="form-control">
+                            <option value="active">Active</option>
+                            <option value="expired">Expired</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="edit_trainer">Assigned Trainer</label>
+                    <select name="trainer_name" id="edit_trainer" class="form-control">
+                        <option value="">None</option>
+                        {% for t in trainers %}
+                        <option value="{{ t.name }}">{{ t.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('editMemberModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Update Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}

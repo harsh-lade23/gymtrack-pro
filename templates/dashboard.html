@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}GymTrack Pro — Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Welcome back — here's your gym overview{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('seed_database') }}" class="btn btn-secondary btn-sm">
+    <i class="fas fa-database"></i> Seed DB
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stat Cards -->
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon violet"><i class="fas fa-users"></i></div>
+        <div class="stat-value">{{ stats.total_members }}</div>
+        <div class="stat-label">Total Members</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-user-check"></i></div>
+        <div class="stat-value">{{ stats.active_members }}</div>
+        <div class="stat-label">Active Members</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon cyan"><i class="fas fa-heartbeat"></i></div>
+        <div class="stat-value">{{ stats.total_workouts }}</div>
+        <div class="stat-label">Total Workouts</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber"><i class="fas fa-rupee-sign"></i></div>
+        <div class="stat-value">₹{{ "{:,}".format(stats.total_revenue) }}</div>
+        <div class="stat-label">Total Revenue</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-user-tie"></i></div>
+        <div class="stat-value">{{ stats.total_trainers }}</div>
+        <div class="stat-label">Trainers</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red"><i class="fas fa-tags"></i></div>
+        <div class="stat-value">{{ stats.total_plans }}</div>
+        <div class="stat-label">Plans Available</div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="charts-grid">
+    <!-- Workout Distribution Pie Chart -->
+    <div class="chart-card">
+        <h4><i class="fas fa-chart-pie" style="color: var(--accent-violet); margin-right: 8px;"></i>Workout Type Distribution</h4>
+        <canvas id="workoutChart" height="220"></canvas>
+    </div>
+
+    <!-- Monthly Signups Bar Chart -->
+    <div class="chart-card">
+        <h4><i class="fas fa-chart-bar" style="color: var(--accent-cyan); margin-right: 8px;"></i>Monthly Member Signups</h4>
+        <canvas id="signupChart" height="220"></canvas>
+    </div>
+</div>
+
+<!-- Recent Members Table -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-clock" style="color: var(--accent-violet); margin-right: 8px;"></i>Recent Members</h3>
+        <a href="{{ url_for('members_page') }}" class="btn btn-secondary btn-sm">View All</a>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Member</th>
+                        <th>Plan</th>
+                        <th>Trainer</th>
+                        <th>Status</th>
+                        <th>Joined</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for member in recent_members %}
+                    <tr>
+                        <td>
+                            <div class="member-info">
+                                <div class="avatar {{ get_avatar_color(member.name) }}">{{ get_initials(member.name) }}</div>
+                                <div>
+                                    <div class="member-name">{{ member.name }}</div>
+                                    <div class="member-email">{{ member.email }}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td><span class="badge badge-violet">{{ member.membership.plan_name }}</span></td>
+                        <td>{{ member.trainer_name if member.trainer_name else '—' }}</td>
+                        <td>
+                            <span class="badge badge-{{ member.membership.status }} badge-dot">
+                                {{ member.membership.status | capitalize }}
+                            </span>
+                        </td>
+                        <td>{{ member.join_date.strftime('%d %b %Y') }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not recent_members %}
+                    <tr>
+                        <td colspan="5">
+                            <div class="empty-state">
+                                <i class="fas fa-users"></i>
+                                <h4>No Members Yet</h4>
+                                <p>Run seed_data.py or add members manually.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Chart.js global config for dark theme
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+
+// Workout Type Distribution (Doughnut)
+const workoutData = {{ workout_dist | tojson }};
+if (workoutData.length > 0) {
+    const wCtx = document.getElementById('workoutChart').getContext('2d');
+    new Chart(wCtx, {
+        type: 'doughnut',
+        data: {
+            labels: workoutData.map(d => d._id),
+            datasets: [{
+                data: workoutData.map(d => d.count),
+                backgroundColor: [
+                    'rgba(124, 58, 237, 0.7)',
+                    'rgba(6, 182, 212, 0.7)',
+                    'rgba(16, 185, 129, 0.7)',
+                    'rgba(245, 158, 11, 0.7)',
+                    'rgba(239, 68, 68, 0.7)'
+                ],
+                borderColor: [
+                    'rgba(124, 58, 237, 1)',
+                    'rgba(6, 182, 212, 1)',
+                    'rgba(16, 185, 129, 1)',
+                    'rgba(245, 158, 11, 1)',
+                    'rgba(239, 68, 68, 1)'
+                ],
+                borderWidth: 1.5,
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '65%',
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 16, usePointStyle: true, pointStyleWidth: 10, font: { size: 12 } }
+                }
+            }
+        }
+    });
+}
+
+// Monthly Signups (Bar)
+const signupData = {{ monthly_signups | tojson }};
+if (signupData.length > 0) {
+    const sCtx = document.getElementById('signupChart').getContext('2d');
+    new Chart(sCtx, {
+        type: 'bar',
+        data: {
+            labels: signupData.map(d => d.label),
+            datasets: [{
+                label: 'New Members',
+                data: signupData.map(d => d.count),
+                backgroundColor: 'rgba(124, 58, 237, 0.5)',
+                borderColor: 'rgba(124, 58, 237, 1)',
+                borderWidth: 1.5,
+                borderRadius: 6,
+                barThickness: 28
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, font: { size: 11 } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 } }
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

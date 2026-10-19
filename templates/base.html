@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GymTrack Pro{% endblock %}</title>
+    <meta name="description" content="Gym Membership & Workout Tracking System — MongoDB + PyMongo Project">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- ====== SIDEBAR ====== -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-brand">
+                <div class="brand-icon">
+                    <i class="fas fa-dumbbell"></i>
+                </div>
+                <div class="brand-text">
+                    <h1>GymTrack Pro</h1>
+                    <span>Management System</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">Main</div>
+                <ul>
+                    <li class="nav-item">
+                        <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if active_page == 'dashboard' }}">
+                            <i class="fas fa-chart-pie"></i>
+                            Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('members_page') }}" class="nav-link {{ 'active' if active_page == 'members' }}">
+                            <i class="fas fa-users"></i>
+                            Members
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('workouts_page') }}" class="nav-link {{ 'active' if active_page == 'workouts' }}">
+                            <i class="fas fa-heartbeat"></i>
+                            Workouts
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('trainers_page') }}" class="nav-link {{ 'active' if active_page == 'trainers' }}">
+                            <i class="fas fa-user-tie"></i>
+                            Trainers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('plans_page') }}" class="nav-link {{ 'active' if active_page == 'plans' }}">
+                            <i class="fas fa-tags"></i>
+                            Plans
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-section-title">MongoDB Operations</div>
+                <ul>
+                    <li class="nav-item">
+                        <a href="{{ url_for('reports_page') }}" class="nav-link {{ 'active' if active_page == 'reports' }}">
+                            <i class="fas fa-layer-group"></i>
+                            Aggregation Reports
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('indexes_page') }}" class="nav-link {{ 'active' if active_page == 'indexes' }}">
+                            <i class="fas fa-bolt"></i>
+                            Indexing Demo
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ url_for('validation_page') }}" class="nav-link {{ 'active' if active_page == 'validation' }}">
+                            <i class="fas fa-shield-alt"></i>
+                            Schema Validation
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <p>CSE494 · MongoDB + PyMongo</p>
+            </div>
+        </aside>
+
+        <!-- ====== MAIN CONTENT ====== -->
+        <main class="main-content">
+            <header class="page-header">
+                <div>
+                    <h2>{% block page_title %}Dashboard{% endblock %}</h2>
+                    <p class="page-subtitle">{% block page_subtitle %}Overview of your gym{% endblock %}</p>
+                </div>
+                <div class="d-flex align-center gap-2">
+                    {% block header_actions %}{% endblock %}
+                </div>
+            </header>
+
+            <div class="page-body">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- ====== FLASH MESSAGES ====== -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-container" id="flashContainer">
+        {% for category, message in messages %}
+        <div class="flash-msg {{ category }}">
+            <i class="fas {{ 'fa-check-circle' if category == 'success' else 'fa-exclamation-circle' }}"></i>
+            <span>{{ message }}</span>
+            <button class="flash-close" onclick="this.parentElement.remove()">&times;</button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

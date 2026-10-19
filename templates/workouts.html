@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Workouts — GymTrack Pro{% endblock %}
+{% block page_title %}Workout Sessions{% endblock %}
+{% block page_subtitle %}Track exercise logs and workout history (Embedded Documents &amp; $push Operator){% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('delete_old_workouts') }}" class="btn btn-secondary btn-sm"
+   onclick="return confirm('Purge all workout sessions older than 365 days using MongoDB delete_many?')">
+    <i class="fas fa-trash-alt"></i> Delete Workouts &gt; 1 Yr
+</a>
+<button class="btn btn-primary btn-sm" onclick="openModal('addWorkoutModal')">
+    <i class="fas fa-plus-circle"></i> Log Workout
+</button>
+{% endblock %}
+
+{% block content %}
+
+<!-- MongoDB Operation Info Banner -->
+<div class="seed-banner">
+    <div class="seed-info">
+        <h4><i class="fas fa-dumbbell text-gradient" style="margin-right: 8px;"></i>Embedded Document Architecture</h4>
+        <p>Workouts demonstrate the <strong>Embedding Pattern</strong>: each workout embeds an array of <code>exercises</code>. You can also append individual exercises into an existing workout using the <code>$push</code> array operator!</p>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge badge-cyan">Total Sessions: {{ workouts|length }}</span>
+    </div>
+</div>
+
+<!-- Workouts List -->
+<div class="card">
+    <div class="card-header">
+        <h3><i class="fas fa-history" style="color: var(--accent-cyan); margin-right: 8px;"></i>Workout History</h3>
+        <span class="text-muted" style="font-size: 13px;">Sorted by date descending</span>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Member</th>
+                        <th>Type</th>
+                        <th>Duration</th>
+                        <th>Calories</th>
+                        <th>Date</th>
+                        <th>Embedded Exercises</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for w in workouts %}
+                    <tr>
+                        <td>
+                            <div style="font-weight: 600; color: var(--text-primary);">{{ w.member_name }}</div>
+                            <div class="text-muted" style="font-size: 12px;">{{ w.member_email }}</div>
+                            {% if w.notes %}
+                            <div style="font-size: 11px; color: var(--text-muted); font-style: italic; margin-top: 2px;">"{{ w.notes }}"</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if w.workout_type == 'Cardio' %}
+                                <span class="badge badge-cyan">{{ w.workout_type }}</span>
+                            {% elif w.workout_type == 'Strength' %}
+                                <span class="badge badge-violet">{{ w.workout_type }}</span>
+                            {% elif w.workout_type == 'HIIT' %}
+                                <span class="badge badge-amber">{{ w.workout_type }}</span>
+                            {% elif w.workout_type == 'Yoga' %}
+                                <span class="badge badge-green">{{ w.workout_type }}</span>
+                            {% else %}
+                                <span class="badge badge-violet">{{ w.workout_type }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="font-weight: 600;"><i class="far fa-clock" style="margin-right: 4px; color: var(--text-muted);"></i>{{ w.duration_minutes }} min</span>
+                        </td>
+                        <td>
+                            <span style="font-weight: 700; color: #f59e0b;"><i class="fas fa-fire" style="margin-right: 4px;"></i>{{ w.calories_burned }} kcal</span>
+                        </td>
+                        <td>
+                            <span class="text-muted" style="font-size: 12.5px;">{{ w.date.strftime('%d %b %Y') if w.date else 'N/A' }}</span>
+                        </td>
+                        <td>
+                            {% if w.exercises and w.exercises|length > 0 %}
+                            <div style="display: flex; flex-wrap: wrap; gap: 6px; max-width: 380px;">
+                                {% for ex in w.exercises %}
+                                <span class="badge" style="background: rgba(255,255,255,0.06); border: 1px solid var(--border-color); font-size: 11.5px; font-weight: normal; color: var(--text-secondary);">
+                                    <strong>{{ ex.name }}</strong>: {{ ex.sets }}×{{ ex.reps }}{% if ex.weight_kg and ex.weight_kg > 0 %} @ {{ ex.weight_kg }}kg{% endif %}
+                                </span>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <span class="text-muted" style="font-size: 12px;">No specific sets logged</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="action-group">
+                                <button class="btn-icon" title="Add Exercise ($push)"
+                                        onclick="openAddExerciseModal('{{ w._id }}', '{{ w.member_name }}')">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <a href="{{ url_for('delete_workout', id=w._id) }}" class="btn-icon danger" title="Delete Session"
+                                   onclick="return confirm('Delete this workout session?')">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not workouts %}
+                    <tr>
+                        <td colspan="7">
+                            <div class="empty-state">
+                                <i class="fas fa-dumbbell"></i>
+                                <h4>No Workouts Logged Yet</h4>
+                                <p>Click "Log Workout" above or seed the database from Dashboard.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ================= LOG WORKOUT MODAL ================= -->
+<div class="modal-overlay" id="addWorkoutModal">
+    <div class="modal" style="max-width: 620px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus-circle text-gradient" style="margin-right: 8px;"></i>Log Workout Session</h3>
+            <button class="modal-close" onclick="closeModal('addWorkoutModal')">&times;</button>
+        </div>
+        <form action="{{ url_for('add_workout') }}" method="POST">
+            <div class="modal-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="member_email">Select Member *</label>
+                        <select name="member_email" id="member_email" class="form-control" required>
+                            {% for m in members %}
+                            <option value="{{ m.email }}">{{ m.name }} ({{ m.email }})</option>
+                            {% endfor %}
+                            {% if not members %}
+                            <option value="test@gym.com">Demo Member (test@gym.com)</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="workout_type">Workout Category *</label>
+                        <select name="workout_type" id="workout_type" class="form-control" required>
+                            <option value="Strength">Strength Training</option>
+                            <option value="Cardio">Cardio</option>
+                            <option value="HIIT">HIIT</option>
+                            <option value="Yoga">Yoga &amp; Flexibility</option>
+                            <option value="CrossFit">CrossFit</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label for="date">Date *</label>
+                        <input type="date" name="date" id="date" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="duration_minutes">Duration (min) *</label>
+                        <input type="number" name="duration_minutes" id="duration_minutes" class="form-control" min="5" max="300" value="45" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="calories_burned">Calories (kcal) *</label>
+                        <input type="number" name="calories_burned" id="calories_burned" class="form-control" min="10" max="3000" value="350" required>
+                    </div>
+                </div>
+
+                <!-- Embedded Exercises Section -->
+                <div class="form-group">
+                    <div class="d-flex justify-between align-center mb-1">
+                        <label style="margin: 0;">Embedded Exercises (Document Array)</label>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="addExerciseRow()">
+                            <i class="fas fa-plus"></i> Add Exercise
+                        </button>
+                    </div>
+                    <div id="exerciseRows">
+                        <div class="form-row-3 mb-1 exercise-item align-center" style="gap: 10px;">
+                            <div style="flex: 2;">
+                                <input type="text" name="ex_name[]" class="form-control" placeholder="e.g. Bench Press" value="Bench Press">
+                            </div>
+                            <div style="flex: 1;">
+                                <input type="number" name="ex_sets[]" class="form-control" placeholder="Sets" value="3" min="1">
+                            </div>
+                            <div style="flex: 1;">
+                                <input type="number" name="ex_reps[]" class="form-control" placeholder="Reps" value="10" min="1">
+                            </div>
+                            <div style="flex: 1;">
+                                <input type="number" step="0.5" name="ex_weight[]" class="form-control" placeholder="Kg" value="50">
+                            </div>
+                            <div>
+                                <button type="button" class="btn-icon danger" onclick="this.closest('.exercise-item').remove()" title="Remove">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="notes">Notes / Observations</label>
+                    <textarea name="notes" id="notes" class="form-control" placeholder="Felt energetic, increased bench press weight..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addWorkoutModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Workout</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ================= ADD EXERCISE TO EXISTING WORKOUT MODAL ($push demo) ================= -->
+<div class="modal-overlay" id="addExerciseModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus text-gradient" style="margin-right: 8px;"></i>Append Exercise ($push)</h3>
+            <button class="modal-close" onclick="closeModal('addExerciseModal')">&times;</button>
+        </div>
+        <form id="addExerciseForm" method="POST">
+            <div class="modal-body">
+                <p class="text-muted mb-2" style="font-size: 13px;">
+                    Append a new exercise to <strong id="addExerciseMemberName"></strong>'s session using MongoDB's <code>$push</code> operator on the embedded <code>exercises</code> array.
+                </p>
+                <div class="form-group">
+                    <label for="push_ex_name">Exercise Name *</label>
+                    <input type="text" name="ex_name" id="push_ex_name" class="form-control" placeholder="e.g. Incline Dumbbell Press" required>
+                </div>
+                <div class="form-row-3">
+                    <div class="form-group">
+                        <label for="push_ex_sets">Sets *</label>
+                        <input type="number" name="ex_sets" id="push_ex_sets" class="form-control" value="3" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="push_ex_reps">Reps *</label>
+                        <input type="number" name="ex_reps" id="push_ex_reps" class="form-control" value="12" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="push_ex_weight">Weight (kg)</label>
+                        <input type="number" step="0.5" name="ex_weight" id="push_ex_weight" class="form-control" value="22.5">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('addExerciseModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="fas fa-plus"></i> Push Exercise</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Default date to today
+document.addEventListener('DOMContentLoaded', () => {
+    const dateInput = document.getElementById('date');
+    if (dateInput) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+});
+</script>
+
+{% endblock %}
